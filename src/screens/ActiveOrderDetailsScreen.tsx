@@ -11,10 +11,10 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import Icon from '../utilities/Icon';
 import {SVG_ICONS} from '../assets/icons/svg';
-import {useToast} from '../utilities/ToastContext';
 import {fetchOrderDetail, updateOrderStatus} from '../api/home/homeApi';
+import { useToast } from '../utilities/ToastContext';
+import Icon from '../utilities/Icon';
 
 const ActiveOrderDetails = ({navigation, route}: any) => {
   const {orderId} = route.params;
@@ -28,7 +28,9 @@ const ActiveOrderDetails = ({navigation, route}: any) => {
     null,
   );
 
+  // OTP and Cash States
   const [otp, setOtp] = useState('');
+  const [cashAmount, setCashAmount] = useState('');
   const otpInputRef = useRef<TextInput>(null);
 
   useEffect(() => {
@@ -40,6 +42,10 @@ const ActiveOrderDetails = ({navigation, route}: any) => {
       setLoading(true);
       const data = await fetchOrderDetail(orderId);
       setOrder(data);
+      // Pre-fill cash amount if needed based on order total
+      if (data?.total_amount) {
+        setCashAmount(data.total_amount.toString());
+      }
     } catch (error) {
       showToast('Failed to load order details', 'error');
     } finally {
@@ -58,7 +64,7 @@ const ActiveOrderDetails = ({navigation, route}: any) => {
         delivery_status: response.results.data.delivery_status,
       }));
 
-      if (action === 'verify_otp') {
+      if (action === 'verify_otp' || action === 'client_acknowledgement') {
         setModalType('success');
       } else {
         showToast(
@@ -97,7 +103,6 @@ const ActiveOrderDetails = ({navigation, route}: any) => {
                 Enter the 4-digit OTP provided by the customer.
               </Text>
 
-              {/* FIXED: TextInput positioned to capture all touches in the OTP area */}
               <View style={styles.otpInputWrapper}>
                 <TextInput
                   ref={otpInputRef}
@@ -139,6 +144,59 @@ const ActiveOrderDetails = ({navigation, route}: any) => {
                   <ActivityIndicator color="white" />
                 ) : (
                   <Text style={styles.modalActionText}>Verify & Complete</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {modalType === 'cash' && (
+            <View style={{alignItems: 'center', width: '100%'}}>
+              <Icon xml={SVG_ICONS.dollarIcon} size={60} color="#10b981" />
+              <Text style={styles.cashModalTitle}>Log Cash Payment</Text>
+              <Text style={styles.cashModalSub}>
+                Order:{' '}
+                <Text style={{fontWeight: 'bold'}}>{order.order_number}</Text>
+              </Text>
+              <Text style={styles.cashModalSub}>
+                Amount to Collect:{' '}
+                <Text style={styles.collectAmount}>
+                  AED {order.total_amount}
+                </Text>
+              </Text>
+
+              <View style={styles.cashInputSection}>
+                <Text style={styles.cashInputLabel}>Amount Received</Text>
+                <View style={styles.cashInputWrapper}>
+                  <Text style={styles.currencyPrefix}>AED</Text>
+                  <TextInput
+                    value={cashAmount}
+                    onChangeText={setCashAmount}
+                    keyboardType="decimal-pad"
+                    style={styles.cashTextInput}
+                    placeholder="0.00"
+                  />
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.cashConfirmBtn,
+                  (!cashAmount || actionLoading) && {
+                    backgroundColor: '#a7f3d0',
+                  },
+                ]}
+                disabled={!cashAmount || actionLoading}
+                onPress={() =>
+                  handleStatusUpdate('client_acknowledgement', {
+                    cash_collected: parseFloat(cashAmount),
+                  })
+                }>
+                {actionLoading ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text style={styles.cashConfirmText}>
+                    Confirm Cash Received
+                  </Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -186,23 +244,37 @@ const ActiveOrderDetails = ({navigation, route}: any) => {
         <View style={styles.contentCard}>
           <Text style={styles.orderIdTitle}>{order.order_number}</Text>
           <InfoRow
-            label="Address"
+            label="Customer"
+            value={order.customer_name || 'Charlie Brown'}
+            icon={SVG_ICONS.userIcon}
+          />
+          <InfoRow
+            label="Deliver To"
             value={order.address}
             icon={SVG_ICONS.locationIcon}
           />
-          <InfoRow
-            label="Contact"
-            value={order.phone_number || 'No contact provided'}
-            icon={SVG_ICONS.userIcon}
-          />
+
+          <View style={styles.instructionBox}>
+            <View style={styles.row}>
+              <Icon xml={SVG_ICONS.noteIcon} size={16} color="#ef4444" />
+              <Text style={styles.instructionHeader}>
+                {' '}
+                DELIVERY INSTRUCTIONS
+              </Text>
+            </View>
+            <Text style={styles.instructionText}>
+              Fragile, handle with care.
+            </Text>
+          </View>
 
           <View style={styles.paymentSection}>
             <Icon xml={SVG_ICONS.dollarIcon} size={20} color="#3b82f6" />
             <View style={{marginLeft: 10}}>
-              <Text style={styles.paymentLabel}>
-                Payment ({order.payment_method?.toUpperCase()})
+              <Text style={styles.paymentLabel}>Payment</Text>
+              <Text style={styles.paymentValue}>
+                {order.payment_method?.toUpperCase() || 'COD'}: AED{' '}
+                {order.total_amount}
               </Text>
-              <Text style={styles.paymentValue}>AED {order.total_amount}</Text>
             </View>
           </View>
 
@@ -210,11 +282,15 @@ const ActiveOrderDetails = ({navigation, route}: any) => {
             style={styles.dropdown}
             onPress={() => setShowItems(!showItems)}>
             <View style={styles.row}>
-              <Icon xml={SVG_ICONS.noteIcon} size={20} color="#3b82f6" />
-              <Text style={styles.dropdownText}>Product Details</Text>
+              <Icon
+                xml={SVG_ICONS.listIcon || SVG_ICONS.noteIcon}
+                size={20}
+                color="#3b82f6"
+              />
+              <Text style={styles.dropdownText}>Show Product Details</Text>
             </View>
             <Icon
-              xml={showItems ? SVG_ICONS.chevronUp : SVG_ICONS.arrowDown}
+              xml={showItems ? SVG_ICONS.chevronUp : SVG_ICONS.arrowRight}
               size={20}
               color="#334155"
             />
@@ -258,25 +334,52 @@ const ActiveOrderDetails = ({navigation, route}: any) => {
         )}
 
         {dStatus === 'out_for_delivery' && (
-          <TouchableOpacity
-            style={styles.mainBtn}
-            onPress={() => setModalType('otp')}>
-            <Text style={styles.mainBtnText}>Deliver & Verify OTP</Text>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity
+              style={[styles.mainBtn, {flexDirection: 'row', gap: 8}]}
+              onPress={() => setModalType('otp')}>
+              <Icon xml={SVG_ICONS.shieldIcon} size={18} color="white" />
+              <Text style={styles.mainBtnText}>Verify Customer OTP</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.outlineActionBtn, {flexDirection: 'row', gap: 8}]}
+              onPress={() => setModalType('cash')}>
+              <Icon
+                xml={SVG_ICONS.editIcon || SVG_ICONS.noteIcon}
+                size={18}
+                color="#2563eb"
+              />
+              <Text style={styles.outlineActionBtnText}>
+                Client Acknowledgement
+              </Text>
+            </TouchableOpacity>
+          </>
         )}
 
         <View style={styles.rowBetween}>
           <TouchableOpacity style={styles.secondaryBtn}>
-            <Text style={styles.secondaryBtnText}>Call Customer</Text>
+            <View style={styles.row}>
+              <Icon
+                xml={SVG_ICONS.phoneIcon || SVG_ICONS.userIcon}
+                size={16}
+                color="#2563eb"
+              />
+              <Text style={styles.secondaryBtnText}> Call Customer</Text>
+            </View>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() =>
               navigation.navigate('ReportScreeen', {orderId: order.id})
             }
             style={[styles.secondaryBtn, {backgroundColor: '#fee2e2'}]}>
-            <Text style={[styles.secondaryBtnText, {color: '#ef4444'}]}>
-              Report Issue
-            </Text>
+            <View style={styles.row}>
+              <Icon xml={SVG_ICONS.warningIcon} size={16} color="#ef4444" />
+              <Text style={[styles.secondaryBtnText, {color: '#ef4444'}]}>
+                {' '}
+                Report Issue
+              </Text>
+            </View>
           </TouchableOpacity>
         </View>
       </View>
@@ -306,24 +409,36 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   orderIdTitle: {
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: '800',
     color: '#1e293b',
     marginBottom: 20,
   },
   infoRow: {flexDirection: 'row', marginBottom: 20},
-  infoLabel: {fontSize: 13, color: '#64748b'},
-  infoValue: {fontSize: 15, fontWeight: '700', color: '#1e293b'},
+  infoLabel: {fontSize: 14, color: '#64748b', fontWeight: '500'},
+  infoValue: {fontSize: 16, fontWeight: '700', color: '#1e293b', marginTop: 2},
+  instructionBox: {
+    backgroundColor: '#fff1f2',
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  instructionHeader: {fontSize: 12, fontWeight: '800', color: '#e11d48'},
+  instructionText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginTop: 5,
+  },
   paymentSection: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 15,
     borderTopWidth: 1,
-    borderBottomWidth: 1,
     borderColor: '#f1f5f9',
-    marginBottom: 20,
+    marginBottom: 10,
   },
-  paymentLabel: {fontSize: 13, color: '#64748b'},
+  paymentLabel: {fontSize: 14, color: '#64748b'},
   paymentValue: {fontSize: 16, fontWeight: '800', color: '#1e293b'},
   dropdown: {
     flexDirection: 'row',
@@ -333,6 +448,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#f1f5f9',
     borderRadius: 12,
+    marginBottom: 10,
   },
   dropdownText: {fontWeight: '700', color: '#334155', marginLeft: 10},
   itemDetail: {
@@ -360,6 +476,17 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   mainBtnText: {color: 'white', fontWeight: '800', fontSize: 16},
+  outlineActionBtn: {
+    height: 55,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderWidth: 2,
+    borderColor: '#3b82f6',
+    marginBottom: 15,
+  },
+  outlineActionBtnText: {color: '#2563eb', fontWeight: '800', fontSize: 16},
   rowBetween: {flexDirection: 'row', justifyContent: 'space-between'},
   secondaryBtn: {
     flex: 0.48,
@@ -392,7 +519,50 @@ const styles = StyleSheet.create({
   },
   modalSub: {textAlign: 'center', color: '#64748b', marginBottom: 20},
 
-  // FIXED OTP STYLES
+  // CASH MODAL STYLES
+  cashModalTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#1e293b',
+    marginTop: 10,
+  },
+  cashModalSub: {fontSize: 16, color: '#64748b', marginTop: 5},
+  collectAmount: {color: '#10b981', fontWeight: '800'},
+  cashInputSection: {width: '100%', marginTop: 20},
+  cashInputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748b',
+    marginBottom: 8,
+  },
+  cashInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#cbd5e1',
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    height: 60,
+  },
+  currencyPrefix: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#94a3b8',
+    marginRight: 10,
+  },
+  cashTextInput: {flex: 1, fontSize: 24, fontWeight: 'bold', color: '#1e293b'},
+  cashConfirmBtn: {
+    width: '100%',
+    backgroundColor: '#10b981',
+    borderRadius: 12,
+    height: 55,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 25,
+  },
+  cashConfirmText: {color: 'white', fontWeight: '800', fontSize: 16},
+
+  // OTP STYLES
   otpInputWrapper: {
     width: '100%',
     alignItems: 'center',
