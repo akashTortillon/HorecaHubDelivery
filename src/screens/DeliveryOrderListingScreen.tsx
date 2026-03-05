@@ -12,7 +12,7 @@ import {
 import Icon from '../utilities/Icon';
 import {SVG_ICONS} from '../assets/icons/svg';
 import {useIsFocused} from '@react-navigation/native';
-import { fetchActiveOrders, fetchAssignments } from '../api/home/homeApi';
+import {fetchActiveOrders, fetchAssignments} from '../api/home/homeApi';
 
 export enum screenType {
   HISTORY = 'History',
@@ -68,6 +68,7 @@ const OrderListing = ({navigation, route}: any) => {
 
     if (status === 'out_for_delivery') bgColor = '#f97316';
     if (status === 'picked_up') bgColor = '#facc15';
+    if (status === 'delivered') bgColor = '#22c55e'; // Added Delivered status
     if (status === 'ready_to_ship' || status === 'scheduled')
       bgColor = '#3b82f6';
 
@@ -81,6 +82,7 @@ const OrderListing = ({navigation, route}: any) => {
   const renderOrderCard = ({item}: {item: any}) => {
     const isActive = activeTab === 'active';
     const currentStatus = item.delivery_status || item.status;
+    const isDelivered = currentStatus === 'delivered'; //
 
     return (
       <View style={styles.card}>
@@ -143,33 +145,59 @@ const OrderListing = ({navigation, route}: any) => {
           <Text style={styles.viewDetailsText}>View Details {'>'}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() =>
-            navigation.navigate(
-              isActive ? 'ActiveOrderDetails' : 'OrderDetails',
-              {
-                orderId: item.id,
-                screenType: isActive ? undefined : screenType.NEW,
-              },
-            )
-          }>
-          <Text style={styles.actionButtonText}>
-            {isActive
-              ? currentStatus === 'scheduled' ||
-                currentStatus === 'ready_to_ship'
-                ? 'Pickup Package'
-                : 'Continue Delivery'
-              : 'View & Accept Order'}
-          </Text>
-        </TouchableOpacity>
+        {/* Dynamic Action Buttons based on status */}
+        {isDelivered ? (
+          <View style={styles.downloadRow}>
+            <TouchableOpacity
+              style={styles.downloadBtn}
+              onPress={() => console.log('Download Receipt')}>
+              <Icon
+                xml={SVG_ICONS.downloadIcon || SVG_ICONS.noteIcon}
+                size={16}
+                color="#475569"
+              />
+              <Text style={styles.downloadBtnText}>Receipt</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.downloadBtn}
+              onPress={() => console.log('Download Invoice')}>
+              <Icon
+                xml={SVG_ICONS.downloadIcon || SVG_ICONS.noteIcon}
+                size={16}
+                color="#475569"
+              />
+              <Text style={styles.downloadBtnText}>Invoice</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() =>
+              navigation.navigate(
+                isActive ? 'ActiveOrderDetails' : 'OrderDetails',
+                {
+                  orderId: item.id,
+                  screenType: isActive ? undefined : screenType.NEW,
+                },
+              )
+            }>
+            <Text style={styles.actionButtonText}>
+              {isActive
+                ? currentStatus === 'scheduled' ||
+                  currentStatus === 'ready_to_ship'
+                  ? 'Pickup Package'
+                  : 'Continue Delivery'
+                : 'View & Accept Order'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Dynamic Tab Bar */}
       <View style={styles.tabBar}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'new' && styles.activeTab]}
@@ -198,7 +226,6 @@ const OrderListing = ({navigation, route}: any) => {
       {loading && !refreshing ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#2563eb" />
-          {/* <Text style={styles.loadingText}>Updating list...</Text> */}
         </View>
       ) : (
         <FlatList
@@ -229,7 +256,6 @@ const OrderListing = ({navigation, route}: any) => {
 const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: '#f8fafc'},
   centered: {flex: 1, justifyContent: 'center', alignItems: 'center'},
-  loadingText: {marginTop: 10, color: '#64748b', fontSize: 13},
   tabBar: {
     flexDirection: 'row',
     backgroundColor: 'white',
@@ -296,6 +322,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    paddingBottom: 12,
   },
   codText: {color: '#22c55e', fontWeight: '800', fontSize: 14},
   instructionText: {
@@ -314,8 +343,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   actionButtonText: {color: 'white', fontWeight: '800', fontSize: 16},
+
+  // Download Row Styles
+  downloadRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  downloadBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: '#f1f5f9',
+    height: 48,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  downloadBtnText: {
+    color: '#334155',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+
   emptyContainer: {alignItems: 'center', marginTop: 80},
-  emptyText: {color: '#94a3b8', fontSize: 15, marginTop: 10,textAlign:'center'},
+  emptyText: {
+    color: '#94a3b8',
+    fontSize: 15,
+    marginTop: 10,
+    textAlign: 'center',
+  },
 });
 
 export default OrderListing;

@@ -7,13 +7,15 @@ import {
   ScrollView,
   Modal,
   TextInput,
-  Keyboard,
   ActivityIndicator,
   Alert,
+  Linking,
+  Platform,
 } from 'react-native';
+import MapView, {Marker, PROVIDER_GOOGLE} from 'react-native-maps';
 import {SVG_ICONS} from '../assets/icons/svg';
 import {fetchOrderDetail, updateOrderStatus} from '../api/home/homeApi';
-import { useToast } from '../utilities/ToastContext';
+import {useToast} from '../utilities/ToastContext';
 import Icon from '../utilities/Icon';
 
 const ActiveOrderDetails = ({navigation, route}: any) => {
@@ -28,7 +30,6 @@ const ActiveOrderDetails = ({navigation, route}: any) => {
     null,
   );
 
-  // OTP and Cash States
   const [otp, setOtp] = useState('');
   const [cashAmount, setCashAmount] = useState('');
   const otpInputRef = useRef<TextInput>(null);
@@ -42,7 +43,6 @@ const ActiveOrderDetails = ({navigation, route}: any) => {
       setLoading(true);
       const data = await fetchOrderDetail(orderId);
       setOrder(data);
-      // Pre-fill cash amount if needed based on order total
       if (data?.total_amount) {
         setCashAmount(data.total_amount.toString());
       }
@@ -50,6 +50,27 @@ const ActiveOrderDetails = ({navigation, route}: any) => {
       showToast('Failed to load order details', 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openNavigation = () => {
+    const lat = order?.latitude || 25.2048; // Default to Dubai if null
+    const lng = order?.longitude || 55.2708;
+    const label = order?.address || 'Delivery Location';
+
+    const url = Platform.select({
+      ios: `maps:0,0?q=${label}@${lat},${lng}`,
+      android: `geo:0,0?q=${lat},${lng}(${label})`,
+    });
+
+    if (url) {
+      Linking.canOpenURL(url).then(supported => {
+        if (supported) {
+          Linking.openURL(url);
+        } else {
+          Alert.alert('Error', 'Google Maps is not installed');
+        }
+      });
     }
   };
 
@@ -102,7 +123,6 @@ const ActiveOrderDetails = ({navigation, route}: any) => {
               <Text style={styles.modalSub}>
                 Enter the 4-digit OTP provided by the customer.
               </Text>
-
               <View style={styles.otpInputWrapper}>
                 <TextInput
                   ref={otpInputRef}
@@ -130,7 +150,6 @@ const ActiveOrderDetails = ({navigation, route}: any) => {
                   ))}
                 </TouchableOpacity>
               </View>
-
               <TouchableOpacity
                 style={[
                   styles.modalActionBtn,
@@ -163,7 +182,6 @@ const ActiveOrderDetails = ({navigation, route}: any) => {
                   AED {order.total_amount}
                 </Text>
               </Text>
-
               <View style={styles.cashInputSection}>
                 <Text style={styles.cashInputLabel}>Amount Received</Text>
                 <View style={styles.cashInputWrapper}>
@@ -177,7 +195,6 @@ const ActiveOrderDetails = ({navigation, route}: any) => {
                   />
                 </View>
               </View>
-
               <TouchableOpacity
                 style={[
                   styles.cashConfirmBtn,
@@ -240,7 +257,41 @@ const ActiveOrderDetails = ({navigation, route}: any) => {
 
   return (
     <View style={styles.container}>
-      <ScrollView>
+      {/* Map Header Section */}
+      <View style={styles.mapContainer}>
+        <MapView
+          provider={PROVIDER_GOOGLE}
+          style={styles.map}
+          initialRegion={{
+            latitude: order.latitude || 25.2048,
+            longitude: order.longitude || 55.2708,
+            latitudeDelta: 0.015,
+            longitudeDelta: 0.0121,
+          }}>
+          <Marker
+            coordinate={{
+              latitude: order.latitude || 25.2048,
+              longitude: order.longitude || 55.2708,
+            }}
+          />
+        </MapView>
+
+        {/* GPS Badge */}
+        <View style={styles.gpsBadge}>
+          <View style={styles.gpsDot} />
+          <Text style={styles.gpsText}>Live GPS</Text>
+        </View>
+
+        {/* Start Navigation Button */}
+        <TouchableOpacity
+          style={styles.navFloatingBtn}
+          onPress={openNavigation}>
+          <Icon xml={SVG_ICONS.locationIcon} size={18} color="white" />
+          <Text style={styles.navBtnText}>Start Navigation</Text>
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView style={{marginTop: -20}}>
         <View style={styles.contentCard}>
           <Text style={styles.orderIdTitle}>{order.order_number}</Text>
           <InfoRow
@@ -263,7 +314,7 @@ const ActiveOrderDetails = ({navigation, route}: any) => {
               </Text>
             </View>
             <Text style={styles.instructionText}>
-              Fragile, handle with care.
+              {order.instructions || 'Fragile, handle with care.'}
             </Text>
           </View>
 
@@ -282,11 +333,7 @@ const ActiveOrderDetails = ({navigation, route}: any) => {
             style={styles.dropdown}
             onPress={() => setShowItems(!showItems)}>
             <View style={styles.row}>
-              <Icon
-                xml={SVG_ICONS.listIcon || SVG_ICONS.noteIcon}
-                size={20}
-                color="#3b82f6"
-              />
+              <Icon xml={SVG_ICONS.noteIcon} size={20} color="#3b82f6" />
               <Text style={styles.dropdownText}>Show Product Details</Text>
             </View>
             <Icon
@@ -341,15 +388,10 @@ const ActiveOrderDetails = ({navigation, route}: any) => {
               <Icon xml={SVG_ICONS.shieldIcon} size={18} color="white" />
               <Text style={styles.mainBtnText}>Verify Customer OTP</Text>
             </TouchableOpacity>
-
             <TouchableOpacity
               style={[styles.outlineActionBtn, {flexDirection: 'row', gap: 8}]}
               onPress={() => setModalType('cash')}>
-              <Icon
-                xml={SVG_ICONS.editIcon || SVG_ICONS.noteIcon}
-                size={18}
-                color="#2563eb"
-              />
+              <Icon xml={SVG_ICONS.noteIcon} size={18} color="#2563eb" />
               <Text style={styles.outlineActionBtnText}>
                 Client Acknowledgement
               </Text>
@@ -358,13 +400,11 @@ const ActiveOrderDetails = ({navigation, route}: any) => {
         )}
 
         <View style={styles.rowBetween}>
-          <TouchableOpacity style={styles.secondaryBtn}>
+          <TouchableOpacity
+            style={styles.secondaryBtn}
+            onPress={() => Linking.openURL(`tel:${order.phone_number}`)}>
             <View style={styles.row}>
-              <Icon
-                xml={SVG_ICONS.phoneIcon || SVG_ICONS.userIcon}
-                size={16}
-                color="#2563eb"
-              />
+              <Icon xml={SVG_ICONS.callIcon} size={16} color="#2563eb" />
               <Text style={styles.secondaryBtnText}> Call Customer</Text>
             </View>
           </TouchableOpacity>
@@ -401,12 +441,47 @@ const InfoRow = ({label, value, icon}: any) => (
 const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: '#f8fafc'},
   centered: {flex: 1, justifyContent: 'center', alignItems: 'center'},
+  mapContainer: {height: 250, width: '100%', position: 'relative'},
+  map: {flex: 1},
+  gpsBadge: {
+    position: 'absolute',
+    top: 20,
+    left: 20,
+    backgroundColor: 'white',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    elevation: 5,
+  },
+  gpsDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#22c55e',
+    marginRight: 6,
+  },
+  gpsText: {fontSize: 12, fontWeight: '700', color: '#1e293b'},
+  navFloatingBtn: {
+    position: 'absolute',
+    bottom: 40,
+    right: 20,
+    backgroundColor: '#3b82f6',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 25,
+    elevation: 8,
+  },
+  navBtnText: {color: 'white', fontWeight: '800', marginLeft: 8},
   contentCard: {
     padding: 20,
     backgroundColor: 'white',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    marginTop: 10,
+    minHeight: 500,
   },
   orderIdTitle: {
     fontSize: 26,
@@ -518,8 +593,6 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
   modalSub: {textAlign: 'center', color: '#64748b', marginBottom: 20},
-
-  // CASH MODAL STYLES
   cashModalTitle: {
     fontSize: 24,
     fontWeight: '800',
@@ -561,8 +634,6 @@ const styles = StyleSheet.create({
     marginTop: 25,
   },
   cashConfirmText: {color: 'white', fontWeight: '800', fontSize: 16},
-
-  // OTP STYLES
   otpInputWrapper: {
     width: '100%',
     alignItems: 'center',
@@ -595,7 +666,6 @@ const styles = StyleSheet.create({
   },
   otpBoxActive: {borderColor: '#3b82f6', borderWidth: 2},
   otpText: {fontSize: 22, fontWeight: 'bold', color: '#1e293b'},
-
   modalActionBtn: {
     width: '100%',
     backgroundColor: '#3b82f6',
