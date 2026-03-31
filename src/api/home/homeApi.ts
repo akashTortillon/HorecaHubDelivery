@@ -32,7 +32,7 @@ export const fetchAgentProfile = async () => {
 };
 
 
-export const fetchOrderHistory = async (filter: string) => {
+export const fetchOrderHistory = async (filter: string, page: number = 1, options: { signal?: AbortSignal } = {}) => {
   try {
     let time = 'all_time';
     let status = '';
@@ -59,13 +59,27 @@ export const fetchOrderHistory = async (filter: string) => {
         break;
     }
 
-    const query = `orders/agent/history/?time=${time}${
-      status ? `&status=${status}` : ''
-    }`;
-    const response = await api.get(query);
+    // Building query with pagination and filter logic
+    // We add page and page_size to match the logs you provided earlier
+    let query = `orders/agent/history/?time=${time}&page=${page}&page_size=15`;
+    
+    if (status) {
+      query += `&status=${status}`;
+    }
+
+    // Passing the signal to axios allows it to cancel the request if the component unmounts
+    const response = await api.get(query, {
+      signal: options.signal,
+    });
+
     return response.data.results.data;
   } catch (error) {
-    console.error('❌ [History API] Error:', error);
+    // If the error is an abort/cancel, we don't want to log it as a "failure"
+    if (error?.name === 'CanceledError' || error?.name === 'AbortError') {
+      console.log('✅ [History API] Request safely aborted');
+    } else {
+      console.error('❌ [History API] Error:', error);
+    }
     throw error;
   }
 };
@@ -142,6 +156,8 @@ export const fetchOrderDetail = async (orderId: string) => {
 export const updateOrderStatus = async (orderId: string, action: string, extraData: any = {}) => {
   const payload = { action, ...extraData };
   const response = await api.post(`orders/agent/update-status/${orderId}/`, payload);
+  console.log('order update resp is', response);
+  
   return response.data;
 };
 
@@ -178,5 +194,56 @@ export const reportOrderIssue = async (
       },
     },
   );
+  return response.data;
+};
+
+
+export const fetchCreditNotes = async () => {
+  try {
+    const response = await api.get('orders/agent/order/credit-notes/');
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+
+export const fetchReceiptCustomers = async () => {
+  const response = await api.get('orders/agent/receipt/customers/');
+  return response.data;
+};
+
+export const fetchPendingInvoices = async (customerId: string) => {
+  const response = await api.get(`orders/agent/receipt/pending-invoices/?customer_id=${customerId}`);
+  return response.data;
+};
+
+export const createBulkReceipt = async (payload: any) => {
+  const response = await api.post('orders/agent/receipt/create/', payload);
+  return response.data;
+};
+
+
+export const generateOrderOtp = async (orderId: string | number) => {
+  try {
+    const response = await api.post(`orders/agent/order/${orderId}/generate-otp/`);
+    return response.data;
+  } catch (error) {
+    console.error('❌ [Generate OTP API] Error:', error);
+    throw error;
+  }
+};
+
+
+export const reportOrderReturn = async (orderId: any, reason: string, remarks: string, items: any[]) => {
+  const payload = {
+    reason: reason,
+    remarks: remarks,
+    items: items,
+  };
+  console.log('payload is', payload)
+  // Adjust the base URL/instance as per your project setup
+  const response = await api.post(`orders/agent/order/${orderId}/return/`, payload);
+  console.log('response is', response)
   return response.data;
 };

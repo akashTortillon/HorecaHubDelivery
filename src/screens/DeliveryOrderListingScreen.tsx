@@ -62,6 +62,8 @@ const OrderListing = ({navigation, route}: any) => {
     loadOrders();
   };
 
+  console.log('order items is', orders)
+
   const renderBadge = (status: string) => {
     let bgColor = '#8b5cf6';
     const displayStatus = status?.replace(/_/g, ' ').toUpperCase() || 'PENDING';
@@ -79,6 +81,7 @@ const OrderListing = ({navigation, route}: any) => {
     );
   };
 
+
   const renderOrderCard = ({item}: {item: any}) => {
     const isActive = activeTab === 'active';
     const currentStatus = item.delivery_status || item.status;
@@ -89,7 +92,12 @@ const OrderListing = ({navigation, route}: any) => {
         <View style={styles.cardHeader}>
           <View style={{flex: 1}}>
             <Text style={styles.orderId}>{item.order_number}</Text>
-            <Text style={styles.dateText}>{item.time_display}</Text>
+            <Text style={styles.dateText}>{new Date(item.order_date).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })}
+  {item.time_display ? ` | ${item.time_display}` : ''}</Text>
           </View>
           <View style={styles.badgeContainer}>
             {isActive ? (

@@ -257,11 +257,7 @@ const Dashboard = ({navigation}: any) => {
             }}
           />
           <MenuItem title="Issues & Returns" onPress={()=>{
-             showToast(
-               'Please select an active delivery to report an issue',
-               'info',
-             );
-             navigation.navigate('Orders', {initialTab: 'active'});
+             navigation.navigate('ReportScreeen', { viewMode: 'credit_notes_only' });
           }} />
           <MenuItem title="Support Chat" noBorder />
         </View>

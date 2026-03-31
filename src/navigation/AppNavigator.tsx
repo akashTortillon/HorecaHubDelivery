@@ -2,6 +2,7 @@ import React, {useState, useEffect} from 'react';
 import {View, ActivityIndicator, StyleSheet} from 'react-native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {useAuthStore} from '../store/useAuthStore';
+import {SafeAreaProvider} from 'react-native-safe-area-context';
 
 // Screens
 import MainTabs from './MainTab';
@@ -13,16 +14,24 @@ import ReceiptScreen from '../screens/RecieptScreen';
 import LoginScreen from '../screens/LoginScreen';
 import CashInHandScreen from '../screens/CashReportScreen';
 import SettingsScreen from '../screens/SettingScreen';
+import CreateCashReceiptScreen from '../screens/CreateCashReciept';
 
 export type RootStackParamList = {
   Login: undefined;
   MainTabs: undefined;
   OrderDetails: {orderId: string; screenType: screenType};
-  ActiveOrderDetails: {orderId: string}; // Changed to string to match detail API usage
-  ReportScreeen: {orderId: string};
+  ActiveOrderDetails: {orderId: string};
+  ReportScreeen: {
+    orderId?: string; 
+    orderNumber?: string; 
+    viewMode: 'report' | 'credit_notes_only';
+    orderItems?: any;
+    customerName?: string;
+  };
   ReceiptScreen: {orderId: string};
   CashReportScreen: undefined;
   SettingScreen: undefined;
+  CreateCashReciept: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -34,9 +43,7 @@ const MainNavigator = () => {
 
   useEffect(() => {
     const initAuth = async () => {
-      // 1. Initialize data from AsyncStorage via Zustand
       await bootstrap();
-      // 2. Small delay to prevent flicker
       await new Promise(resolve => setTimeout(resolve, 800));
       setIsLoading(false);
     };
@@ -52,47 +59,52 @@ const MainNavigator = () => {
   }
 
   return (
-    <Stack.Navigator screenOptions={{headerShown: false}}>
-      {token === null ? (
-        // --- UNAUTHENTICATED STACK ---
-        <Stack.Screen name="Login" component={LoginScreen} />
-      ) : (
-        // --- AUTHENTICATED STACK (Dashboard/MainTabs) ---
-        <Stack.Group>
-          <Stack.Screen name="MainTabs" component={MainTabs} />
-          <Stack.Screen
-            name="OrderDetails"
-            component={OrderDetails}
-            options={{headerShown: true, title: 'Order Details'}}
-          />
-          <Stack.Screen
-            name="ActiveOrderDetails"
-            component={ActiveOrderDetails}
-            options={{headerShown: true, title: 'Order Details'}}
-          />
-          <Stack.Screen
-            name="ReportScreeen"
-            component={ReportIssueScreen}
-            options={{headerShown: true, title: 'Report an Issue'}}
-          />
-          <Stack.Screen
-            name="ReceiptScreen"
-            component={ReceiptScreen}
-            options={{headerShown: true, title: 'Receipt'}}
-          />
-          <Stack.Screen
-            name="CashReportScreen"
-            component={CashInHandScreen}
-            options={{headerShown: true, title: 'Cash Report'}}
-          />
-          <Stack.Screen
-            name="SettingScreen"
-            component={SettingsScreen}
-            options={{headerShown: true, title: 'Settings'}}
-          />
-        </Stack.Group>
-      )}
-    </Stack.Navigator>
+    <SafeAreaProvider>
+      <Stack.Navigator screenOptions={{headerShown: false}}>
+        {token === null ? (
+          <Stack.Screen name="Login" component={LoginScreen} />
+        ) : (
+          <Stack.Group>
+            <Stack.Screen name="MainTabs" component={MainTabs} />
+            <Stack.Screen
+              name="OrderDetails"
+              component={OrderDetails}
+              options={{headerShown: true, title: 'Order Details'}}
+            />
+            <Stack.Screen
+              name="ActiveOrderDetails"
+              component={ActiveOrderDetails}
+              options={{headerShown: true, title: 'Order Details'}}
+            />
+            <Stack.Screen
+              name="ReportScreeen"
+              component={ReportIssueScreen}
+              options={{headerShown: true, title: 'Report an Issue'}}
+            />
+            <Stack.Screen
+              name="ReceiptScreen"
+              component={ReceiptScreen}
+              options={{headerShown: true, title: 'Receipt'}}
+            />
+            <Stack.Screen
+              name="CashReportScreen"
+              component={CashInHandScreen}
+              options={{headerShown: true, title: 'Cash Report'}}
+            />
+            <Stack.Screen
+              name="SettingScreen"
+              component={SettingsScreen}
+              options={{headerShown: true, title: 'Settings'}}
+            />
+            <Stack.Screen
+              name="CreateCashReciept"
+              component={CreateCashReceiptScreen}
+              options={{headerShown: true, title: 'Create Receipt'}}
+            />
+          </Stack.Group>
+        )}
+      </Stack.Navigator>
+    </SafeAreaProvider>
   );
 };
 

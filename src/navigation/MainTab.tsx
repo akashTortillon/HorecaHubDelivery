@@ -1,8 +1,7 @@
-import React, {useState} from 'react';
+import React from 'react';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
-import {
-  StyleSheet,
-} from 'react-native';
+import {StyleSheet} from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context'; // Added for Samsung/Pixel fix
 import Icon from '../utilities/Icon';
 import {SVG_ICONS} from '../assets/icons/svg';
 import Dashboard from '../screens/DeliveryDashboardScreen';
@@ -13,73 +12,69 @@ import CustomHeader from '../components/CustomHeader';
 
 const Tab = createBottomTabNavigator();
 
-// STABLE COMPONENT REFERENCE: Prevents the "in" operator crash in Nav 7
-const EmptyComponent = () => null;
-
 const MainTabs = () => {
+  const insets = useSafeAreaInsets(); // Hook to get safe area values
 
   return (
-    <>
-      <Tab.Navigator
-        screenOptions={({}) => ({
-          // FIXED: Pass props to CustomHeader to prevent buildLink errors
-          header: props => <CustomHeader {...props} />,
-          tabBarStyle: {
-            backgroundColor: '#fff',
-            borderTopWidth: 1,
-            borderTopColor: '#f1f5f9',
-            height: 60,
-            paddingBottom: 8,
-          },
-          tabBarActiveTintColor: '#2563eb',
-          tabBarInactiveTintColor: '#94a3b8',
-          tabBarLabelStyle: {fontWeight: '600', fontSize: 11},
-        })}>
-        <Tab.Screen
-          name="Dashboard"
-          component={Dashboard}
-          options={{
-            tabBarLabel: 'Dashboard',
-            tabBarIcon: ({color}) => (
-              <Icon xml={SVG_ICONS.dashboard} size={22} color={color} />
-            ),
-          }}
-        />
+    <Tab.Navigator
+      screenOptions={() => ({
+        header: props => <CustomHeader {...props} />,
+        tabBarStyle: {
+          backgroundColor: '#fff',
+          borderTopWidth: 1,
+          borderTopColor: '#f1f5f9',
+          // FIXED: Use insets.bottom to ensure the bar sits above system buttons
+          height: 60 + insets.bottom, 
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
+        },
+        tabBarActiveTintColor: '#2563eb',
+        tabBarInactiveTintColor: '#94a3b8',
+        tabBarLabelStyle: {fontWeight: '600', fontSize: 11},
+      })}>
+      <Tab.Screen
+        name="Dashboard"
+        component={Dashboard}
+        options={{
+          tabBarLabel: 'Dashboard',
+          tabBarIcon: ({color}) => (
+            <Icon xml={SVG_ICONS.dashboard} size={22} color={color} />
+          ),
+        }}
+      />
 
-        <Tab.Screen
-          name="Orders"
-          component={OrderListing}
-          options={{
-            tabBarLabel: 'Deliveries',
-            tabBarIcon: ({color}) => (
-              <Icon xml={SVG_ICONS.suiteCase} size={22} color={color} />
-            ),
-          }}
-        />
+      <Tab.Screen
+        name="Orders"
+        component={OrderListing}
+        options={{
+          tabBarLabel: 'Deliveries',
+          tabBarIcon: ({color}) => (
+            <Icon xml={SVG_ICONS.suiteCase} size={22} color={color} />
+          ),
+        }}
+      />
 
-        <Tab.Screen
-          name="DeliveryHistory"
-          component={OrderHistory}
-          options={{
-            tabBarLabel: 'History',
-            tabBarIcon: ({color}) => (
-              <Icon xml={SVG_ICONS.historyIcon} size={22} color={color} />
-            ),
-          }}
-        />
+      <Tab.Screen
+        name="DeliveryHistory"
+        component={OrderHistory}
+        options={{
+          tabBarLabel: 'History',
+          tabBarIcon: ({color}) => (
+            <Icon xml={SVG_ICONS.historyIcon} size={22} color={color} />
+          ),
+        }}
+      />
 
-        <Tab.Screen
-          name="ProfileScreen"
-          component={ProfileScreen}
-          options={{
-            tabBarLabel: 'Profile',
-            tabBarIcon: ({color}) => (
-              <Icon xml={SVG_ICONS.userIcon} size={22} color={color} />
-            ),
-          }}
-        />
-      </Tab.Navigator>
-    </>
+      <Tab.Screen
+        name="ProfileScreen"
+        component={ProfileScreen}
+        options={{
+          tabBarLabel: 'Profile',
+          tabBarIcon: ({color}) => (
+            <Icon xml={SVG_ICONS.userIcon} size={22} color={color} />
+          ),
+        }}
+      />
+    </Tab.Navigator>
   );
 };
 
